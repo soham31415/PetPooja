@@ -10,3 +10,10 @@ env/
 .DS_Store
 .vscode
 .idea
+*.log
+alembic/__pycache__/
+build/
+dist/
+*.egg-info/
+*.pid
+*.sock
