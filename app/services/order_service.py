@@ -3,10 +3,30 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from app.models.order import Order, OrderItem, OrderStatus
 from app.models.session import DiningSession, SessionStatus
-from app.models.restaurant import MenuItem
+from app.models.restaurant import MenuItem, Restaurant
 from app.services.session_service import is_active_participant
+from app.core.ws_manager import restaurant_ws_manager
+from app.schemas.order import OrderRead
 import uuid
 from typing import List
+
+
+async def _broadcast_order_event(db: AsyncSession, order: Order, event: str) -> None:
+    """Push a live update to the restaurant's order dashboard, if anyone is connected."""
+    session = await db.get(DiningSession, order.session_id)
+    if not session or not session.restaurant_id:
+        return
+    payload = {
+        "event": event,
+        "order": OrderRead.model_validate(order).model_dump(mode="json"),
+    }
+    await restaurant_ws_manager.broadcast(session.restaurant_id, payload)
+
+
+async def _get_restaurant_for_session(db: AsyncSession, session: DiningSession) -> Restaurant | None:
+    if not session or not session.restaurant_id:
+        return None
+    return await db.get(Restaurant, session.restaurant_id)
 
 
 async def _validate_order_item(db: AsyncSession, session: DiningSession, item_data: dict) -> None:
@@ -69,8 +89,10 @@ async def create_order(
 
     await db.commit()
 
-    # Reload with relationships
-    return await get_order(db, order.id)
+    # Reload with relationships and notify the restaurant's live dashboard
+    order = await get_order(db, order.id)
+    await _broadcast_order_event(db, order, "order_created")
+    return order
 
 
 async def get_order(db: AsyncSession, order_id: int) -> Order:
@@ -98,6 +120,20 @@ async def get_orders_for_session(
     return result.scalars().all()
 
 
+async def get_orders_for_restaurant(
+    db: AsyncSession, restaurant_id: int
+) -> List[Order]:
+    """List every order placed at a restaurant, across all dining sessions (newest first)."""
+    result = await db.execute(
+        select(Order)
+        .join(DiningSession, Order.session_id == DiningSession.id)
+        .options(selectinload(Order.items).selectinload(OrderItem.menu_item))
+        .where(DiningSession.restaurant_id == restaurant_id)
+        .order_by(Order.id.desc())
+    )
+    return result.scalars().all()
+
+
 # Valid status transitions
 _VALID_TRANSITIONS = {
     OrderStatus.PENDING: [OrderStatus.CONFIRMED],
@@ -109,12 +145,16 @@ _VALID_TRANSITIONS = {
 async def update_order_status(
     db: AsyncSession, order_id: int, new_status: OrderStatus, user_id: uuid.UUID
 ) -> Order:
-    """Update the status of an order with transition validation. Host-only."""
+    """
+    Update the status of an order with transition validation.
+    Restaurant-owner only: the restaurant confirms orders and marks them paid.
+    """
     order = await get_order(db, order_id)
 
     session = await db.get(DiningSession, order.session_id)
-    if not session or session.host_id != user_id:
-        raise PermissionError("Only the session host can update order status")
+    restaurant = await _get_restaurant_for_session(db, session)
+    if not restaurant or restaurant.owner_id != user_id:
+        raise PermissionError("Only the restaurant can update order status")
 
     if new_status not in _VALID_TRANSITIONS.get(order.status, []):
         raise ValueError(
@@ -124,7 +164,10 @@ async def update_order_status(
     order.status = new_status
     db.add(order)
     await db.commit()
-    return await get_order(db, order_id)
+
+    order = await get_order(db, order_id)
+    await _broadcast_order_event(db, order, "order_status_updated")
+    return order
 
 
 async def add_item_to_order(
@@ -149,7 +192,10 @@ async def add_item_to_order(
     )
     db.add(order_item)
     await db.commit()
-    return await get_order(db, order_id)
+
+    order = await get_order(db, order_id)
+    await _broadcast_order_event(db, order, "order_item_added")
+    return order
 
 
 async def remove_item_from_order(
@@ -174,4 +220,7 @@ async def remove_item_from_order(
 
     await db.delete(order_item)
     await db.commit()
-    return await get_order(db, order_id)
+
+    order = await get_order(db, order_id)
+    await _broadcast_order_event(db, order, "order_item_removed")
+    return order

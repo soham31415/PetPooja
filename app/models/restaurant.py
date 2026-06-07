@@ -1,7 +1,8 @@
 from sqlalchemy import String, Integer, Float, JSON, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base_class import Base
-from typing import List
+from typing import List, Optional
+import uuid
 
 class Restaurant(Base):
     __tablename__ = "restaurants"
@@ -9,8 +10,12 @@ class Restaurant(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String, index=True)
     address: Mapped[str] = mapped_column(String)
-    
+    # The user account that manages this restaurant (menu + live order dashboard)
+    owner_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id"), nullable=True)
+
     menu_items: Mapped[List["MenuItem"]] = relationship(back_populates="restaurant")
+    owner: Mapped[Optional["User"]] = relationship()
+
 
 class MenuItem(Base):
     __tablename__ = "menu_items"
