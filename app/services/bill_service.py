@@ -35,7 +35,9 @@ async def calculate_bill(db: AsyncSession, session_id: uuid.UUID) -> BillSummary
         return BillSummary(session_id=session_id)
 
     participant_map: Dict[uuid.UUID, User] = {u.id: u for u in participants}
-    num_participants = len(participants)
+    # Stable ordering so that remainder cents are distributed deterministically
+    participant_ids = sorted(participant_map.keys(), key=str)
+    num_participants = len(participant_ids)
 
     # 2. Fetch all orders + items for the session
     order_result = await db.execute(
@@ -83,20 +85,27 @@ async def calculate_bill(db: AsyncSession, session_id: uuid.UUID) -> BillSummary
                 )
                 user_shares[uid].total += item_cost
             else:
-                # Split equally among all active participants
-                per_person_cost = round(item_cost / num_participants, 2)
+                # Split equally among all active participants. Work in integer
+                # cents and hand out the leftover pennies one-by-one so that
+                # the shares always sum to exactly the item's cost (no drift
+                # like $10 / 3 -> $3.33 x 3 = $9.99).
+                item_cost_cents = round(item_cost * 100)
+                base_share_cents, remainder_cents = divmod(item_cost_cents, num_participants)
 
-                for uid in participant_map:
+                for idx, uid in enumerate(participant_ids):
+                    share_cents = base_share_cents + (1 if idx < remainder_cents else 0)
+                    share_amount = share_cents / 100
+
                     user_shares[uid].items.append(
                         BillItemDetail(
                             menu_item_name=item.menu_item.name,
                             quantity=item.quantity,
                             unit_price=item.menu_item.price,
-                            share_amount=per_person_cost,
+                            share_amount=share_amount,
                             is_shared=True,
                         )
                     )
-                    user_shares[uid].total += per_person_cost
+                    user_shares[uid].total += share_amount
 
     # Round totals
     for share in user_shares.values():

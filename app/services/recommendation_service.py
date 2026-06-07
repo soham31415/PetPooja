@@ -81,12 +81,11 @@ async def generate_recommendations(db: AsyncSession, session_id: uuid.UUID) -> L
         
         for restriction in all_restrictions:
             res_lower = restriction.lower()
-            # If restriction is "Vegetarian", and item doesn't have it, skip
-            # This is a simple POC rule.
-            if res_lower in ["vegetarian", "vegan", "gluten-free"]:
-                if res_lower not in item_tags_lower:
-                    allowed = False
-                    break
+            # Any dietary restriction held by a participant must be matched
+            # by a corresponding tag on the item (e.g. "halal" -> tagged "halal").
+            if res_lower not in item_tags_lower:
+                allowed = False
+                break
         
         if not allowed:
             continue

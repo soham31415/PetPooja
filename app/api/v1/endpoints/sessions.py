@@ -2,9 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
+from pydantic import BaseModel
 from typing import Any, List
 from app.api import deps
-from app.models.session import DiningSession, SessionParticipant
+from app.models.session import DiningSession, SessionParticipant, SessionStatus
 from app.models.user import User
 from app.schemas.session import SessionCreate, SessionRead, SessionJoin
 from app.schemas.user import UserRead
@@ -17,9 +18,14 @@ import uuid
 
 router = APIRouter()
 
+
+class SessionStatusUpdate(BaseModel):
+    status: SessionStatus
+
+
 @router.post("/", response_model=SessionRead)
 async def create_new_session(
-    session_in: SessionCreate, 
+    session_in: SessionCreate,
     current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(deps.get_db),
 ):
@@ -28,12 +34,36 @@ async def create_new_session(
     """
     try:
         session = await session_service.create_session(
-            db=db, 
-            host_id=current_user.id, 
+            db=db,
+            host_id=current_user.id,
             restaurant_id=session_in.restaurant_id
         )
         return session
-    except Exception as e:
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.patch("/{session_id}/status", response_model=SessionRead)
+async def update_session_status(
+    session_id: uuid.UUID,
+    status_in: SessionStatusUpdate,
+    current_user: User = Depends(deps.get_current_user),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """
+    Close or cancel a session. Only the host may change its status.
+    Valid transitions: active → closed, active → cancelled.
+    """
+    try:
+        return await session_service.update_session_status(
+            db=db,
+            session_id=session_id,
+            new_status=status_in.status,
+            user_id=current_user.id,
+        )
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/{session_id}/join", response_model=SessionRead)

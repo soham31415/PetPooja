@@ -6,6 +6,7 @@ import uuid
 
 from app.api import deps
 from app.models.order import OrderStatus
+from app.models.user import User
 from app.schemas.order import OrderCreate, OrderRead, OrderItemCreate
 from app.services import order_service
 
@@ -18,17 +19,22 @@ class OrderStatusUpdate(BaseModel):
 
 @router.post("/", response_model=OrderRead)
 async def create_order(
-    order_in: OrderCreate, db: AsyncSession = Depends(deps.get_db)
+    order_in: OrderCreate,
+    current_user: User = Depends(deps.get_current_user),
+    db: AsyncSession = Depends(deps.get_db),
 ):
     """
-    Create a new order for a dining session.
+    Create a new order for a dining session. The caller must be an
+    active participant of the session.
     """
     try:
         items = [item.model_dump() for item in order_in.items]
         order = await order_service.create_order(
-            db=db, session_id=order_in.session_id, items=items
+            db=db, session_id=order_in.session_id, items=items, user_id=current_user.id
         )
         return order
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -58,15 +64,19 @@ async def get_orders_for_session(
 async def update_order_status(
     order_id: int,
     status_in: OrderStatusUpdate,
+    current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(deps.get_db),
 ):
     """
     Update order status. Valid transitions: pending → confirmed → paid.
+    Only the session host may update order status.
     """
     try:
         return await order_service.update_order_status(
-            db=db, order_id=order_id, new_status=status_in.status
+            db=db, order_id=order_id, new_status=status_in.status, user_id=current_user.id
         )
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -75,15 +85,19 @@ async def update_order_status(
 async def add_item_to_order(
     order_id: int,
     item_in: OrderItemCreate,
+    current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(deps.get_db),
 ):
     """
-    Add an item to an existing order. Only works for pending orders.
+    Add an item to an existing order. Only works for pending orders,
+    and the caller must be an active participant of the session.
     """
     try:
         return await order_service.add_item_to_order(
-            db=db, order_id=order_id, item_data=item_in.model_dump()
+            db=db, order_id=order_id, item_data=item_in.model_dump(), user_id=current_user.id
         )
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -92,14 +106,18 @@ async def add_item_to_order(
 async def remove_item_from_order(
     order_id: int,
     item_id: int,
+    current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(deps.get_db),
 ):
     """
-    Remove an item from an order. Only works for pending orders.
+    Remove an item from an order. Only works for pending orders,
+    and the caller must be an active participant of the session.
     """
     try:
         return await order_service.remove_item_from_order(
-            db=db, order_id=order_id, item_id=item_id
+            db=db, order_id=order_id, item_id=item_id, user_id=current_user.id
         )
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

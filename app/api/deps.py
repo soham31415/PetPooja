@@ -7,7 +7,7 @@ from app.core.security import decode_access_token
 from app.models.user import User
 import uuid
 
-engine = create_async_engine(settings.DATABASE_URL, echo=True, future=True)
+engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True)
 
 AsyncSessionLocal = async_sessionmaker(
     engine, class_=AsyncSession, expire_on_commit=False
