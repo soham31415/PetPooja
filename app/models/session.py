@@ -17,12 +17,14 @@ class DiningSession(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     host_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     restaurant_id: Mapped[Optional[int]] = mapped_column(ForeignKey("restaurants.id"), nullable=True)
+    table_id: Mapped[Optional[int]] = mapped_column(ForeignKey("restaurant_tables.id"), nullable=True)
     status: Mapped[SessionStatus] = mapped_column(Enum(SessionStatus), default=SessionStatus.ACTIVE)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Relationships
     participants: Mapped[List["SessionParticipant"]] = relationship(back_populates="session")
     orders: Mapped[List["Order"]] = relationship(back_populates="session")
+    table: Mapped[Optional["RestaurantTable"]] = relationship()
 
 class SessionParticipant(Base):
     __tablename__ = "session_participants"

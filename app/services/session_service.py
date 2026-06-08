@@ -24,7 +24,7 @@ async def is_active_participant(db: AsyncSession, session_id: uuid.UUID, user_id
     return result.scalars().first() is not None
 
 
-async def create_session(db: AsyncSession, host_id: uuid.UUID, restaurant_id: int):
+async def create_session(db: AsyncSession, host_id: uuid.UUID, restaurant_id: int, table_id: int = None):
     if restaurant_id is not None:
         restaurant = await db.get(Restaurant, restaurant_id)
         if not restaurant:
@@ -33,6 +33,7 @@ async def create_session(db: AsyncSession, host_id: uuid.UUID, restaurant_id: in
     session = DiningSession(
         host_id=host_id,
         restaurant_id=restaurant_id,
+        table_id=table_id,
         status=SessionStatus.ACTIVE
     )
     db.add(session)

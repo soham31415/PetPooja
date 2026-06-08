@@ -15,6 +15,20 @@ class Restaurant(Base):
 
     menu_items: Mapped[List["MenuItem"]] = relationship(back_populates="restaurant")
     owner: Mapped[Optional["User"]] = relationship()
+    tables: Mapped[List["RestaurantTable"]] = relationship(back_populates="restaurant")
+
+
+class RestaurantTable(Base):
+    __tablename__ = "restaurant_tables"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    restaurant_id: Mapped[int] = mapped_column(ForeignKey("restaurants.id"))
+    label: Mapped[str] = mapped_column(String)
+    # Opaque token encoded into the table's QR code; scanning it resolves
+    # straight to this table without exposing the numeric restaurant/table ids.
+    qr_token: Mapped[str] = mapped_column(String, unique=True, index=True)
+
+    restaurant: Mapped["Restaurant"] = relationship(back_populates="tables")
 
 
 class MenuItem(Base):

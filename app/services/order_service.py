@@ -5,22 +5,26 @@ from app.models.order import Order, OrderItem, OrderStatus
 from app.models.session import DiningSession, SessionStatus
 from app.models.restaurant import MenuItem, Restaurant
 from app.services.session_service import is_active_participant
-from app.core.ws_manager import restaurant_ws_manager
+from app.core.ws_manager import restaurant_ws_manager, session_ws_manager
 from app.schemas.order import OrderRead
 import uuid
 from typing import List
 
 
 async def _broadcast_order_event(db: AsyncSession, order: Order, event: str) -> None:
-    """Push a live update to the restaurant's order dashboard, if anyone is connected."""
+    """Push a live update to the restaurant's order dashboard and to the
+    dining session's participants (e.g. "your order is ready"), if anyone
+    is connected to either feed."""
     session = await db.get(DiningSession, order.session_id)
-    if not session or not session.restaurant_id:
+    if not session:
         return
     payload = {
         "event": event,
         "order": OrderRead.model_validate(order).model_dump(mode="json"),
     }
-    await restaurant_ws_manager.broadcast(session.restaurant_id, payload)
+    if session.restaurant_id:
+        await restaurant_ws_manager.broadcast(session.restaurant_id, payload)
+    await session_ws_manager.broadcast(session.id, payload)
 
 
 async def _get_restaurant_for_session(db: AsyncSession, session: DiningSession) -> Restaurant | None:

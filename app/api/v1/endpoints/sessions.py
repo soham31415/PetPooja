@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 from typing import Any, List
 from app.api import deps
+from app.core.security import decode_access_token
+from app.core.ws_manager import session_ws_manager
 from app.models.session import DiningSession, SessionParticipant, SessionStatus
 from app.models.user import User
 from app.schemas.session import SessionCreate, SessionRead, SessionJoin
@@ -136,6 +138,46 @@ async def get_session_recommendations(
         db=db, session_id=session_id
     )
     return recommended_items
+
+@router.websocket("/{session_id}/ws")
+async def session_orders_feed(
+    websocket: WebSocket,
+    session_id: uuid.UUID,
+    token: str,
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """
+    Live feed of order events ("order_created", "order_status_updated",
+    "order_item_added", "order_item_removed") for a dining session, e.g. to
+    notify participants when their order is confirmed/ready/paid.
+
+    Browsers can't set Authorization headers on WebSocket connections, so
+    authenticate by passing the JWT access token as a `token` query param,
+    e.g. `wss://.../sessions/{id}/ws?token=<jwt>`. Only active participants
+    of the session may connect; the connection is closed otherwise.
+    """
+    payload = decode_access_token(token)
+    if payload is None:
+        await websocket.close(code=4401)
+        return
+
+    try:
+        user_id = uuid.UUID(payload.get("sub"))
+    except (TypeError, ValueError):
+        await websocket.close(code=4401)
+        return
+
+    if not await session_service.is_active_participant(db, session_id, user_id):
+        await websocket.close(code=4403)
+        return
+
+    await session_ws_manager.connect(session_id, websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        await session_ws_manager.disconnect(session_id, websocket)
+
 
 @router.get("/{session_id}/bill", response_model=BillSummary)
 async def get_session_bill(

@@ -1,35 +1,35 @@
 import asyncio
-from typing import Dict, List
+from typing import Dict, Hashable, List
 
 from fastapi import WebSocket
 
 
-class RestaurantOrderConnectionManager:
-    """Tracks WebSocket clients subscribed to a restaurant's live order feed
-    and broadcasts order events (created / status changed / items changed) to them."""
+class ConnectionManager:
+    """Tracks WebSocket clients subscribed by some key (restaurant id, session
+    id, ...) and broadcasts JSON payloads to all of them."""
 
     def __init__(self) -> None:
-        self._connections: Dict[int, List[WebSocket]] = {}
+        self._connections: Dict[Hashable, List[WebSocket]] = {}
         self._lock = asyncio.Lock()
 
-    async def connect(self, restaurant_id: int, websocket: WebSocket) -> None:
+    async def connect(self, key: Hashable, websocket: WebSocket) -> None:
         await websocket.accept()
         async with self._lock:
-            self._connections.setdefault(restaurant_id, []).append(websocket)
+            self._connections.setdefault(key, []).append(websocket)
 
-    async def disconnect(self, restaurant_id: int, websocket: WebSocket) -> None:
+    async def disconnect(self, key: Hashable, websocket: WebSocket) -> None:
         async with self._lock:
-            connections = self._connections.get(restaurant_id)
+            connections = self._connections.get(key)
             if not connections:
                 return
             if websocket in connections:
                 connections.remove(websocket)
             if not connections:
-                self._connections.pop(restaurant_id, None)
+                self._connections.pop(key, None)
 
-    async def broadcast(self, restaurant_id: int, message: dict) -> None:
+    async def broadcast(self, key: Hashable, message: dict) -> None:
         async with self._lock:
-            connections = list(self._connections.get(restaurant_id, []))
+            connections = list(self._connections.get(key, []))
 
         dead: List[WebSocket] = []
         for connection in connections:
@@ -40,13 +40,17 @@ class RestaurantOrderConnectionManager:
 
         if dead:
             async with self._lock:
-                connections = self._connections.get(restaurant_id)
+                connections = self._connections.get(key)
                 if connections:
                     for connection in dead:
                         if connection in connections:
                             connections.remove(connection)
                     if not connections:
-                        self._connections.pop(restaurant_id, None)
+                        self._connections.pop(key, None)
 
 
-restaurant_ws_manager = RestaurantOrderConnectionManager()
+# Restaurant owners watching their live order dashboard
+restaurant_ws_manager = ConnectionManager()
+
+# Session participants watching their own session's order updates
+session_ws_manager = ConnectionManager()

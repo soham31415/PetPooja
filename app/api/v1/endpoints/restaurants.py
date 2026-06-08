@@ -9,7 +9,9 @@ from app.models.restaurant import Restaurant, MenuItem
 from app.models.user import User
 from app.schemas.restaurant import RestaurantCreate, RestaurantRead, MenuItemCreate, MenuItemRead
 from app.schemas.order import OrderRead
-from app.services import order_service
+from app.schemas.table import RestaurantTableCreate, RestaurantTableRead
+from app.schemas.analytics import RestaurantAnalytics
+from app.services import order_service, table_service, analytics_service
 from typing import List
 import uuid
 
@@ -110,6 +112,49 @@ async def get_restaurant_orders(
     """
     await _get_owned_restaurant(db, restaurant_id, current_user)
     return await order_service.get_orders_for_restaurant(db=db, restaurant_id=restaurant_id)
+
+
+@router.post("/{restaurant_id}/tables", response_model=RestaurantTableRead)
+async def create_restaurant_table(
+    restaurant_id: int,
+    table_in: RestaurantTableCreate,
+    current_user: User = Depends(deps.get_current_user),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """
+    Register a new physical table and generate its QR token. Owner only.
+    Encode `table.qr_token` into a printable QR code that resolves via
+    `GET /tables/{qr_token}`.
+    """
+    await _get_owned_restaurant(db, restaurant_id, current_user)
+    return await table_service.create_table(db, restaurant_id, table_in.label)
+
+
+@router.get("/{restaurant_id}/tables", response_model=List[RestaurantTableRead])
+async def list_restaurant_tables(
+    restaurant_id: int,
+    current_user: User = Depends(deps.get_current_user),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """
+    List a restaurant's tables and their QR tokens. Owner only.
+    """
+    await _get_owned_restaurant(db, restaurant_id, current_user)
+    return await table_service.list_tables(db, restaurant_id)
+
+
+@router.get("/{restaurant_id}/analytics", response_model=RestaurantAnalytics)
+async def get_restaurant_analytics(
+    restaurant_id: int,
+    current_user: User = Depends(deps.get_current_user),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """
+    Aggregate stats for the owner's dashboard: order volume and status
+    breakdown, revenue, average group size, and best-selling items.
+    """
+    await _get_owned_restaurant(db, restaurant_id, current_user)
+    return await analytics_service.get_restaurant_analytics(db, restaurant_id)
 
 
 @router.websocket("/{restaurant_id}/ws/orders")
