@@ -10,3 +10,9 @@ greenlet
 passlib
 bcrypt
 python-jose[cryptography]
+
+# Testing
+pytest
+pytest-asyncio
+httpx
+aiosqlite

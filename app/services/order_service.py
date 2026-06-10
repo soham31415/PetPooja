@@ -101,6 +101,10 @@ async def create_order(
 
 async def get_order(db: AsyncSession, order_id: int) -> Order:
     """Fetch an order with its items and their menu item details."""
+    # Expire any cached state so that relationships modified by a previous
+    # commit in this session (e.g. items added/removed/reassigned) are
+    # reloaded from the database rather than served from the identity map.
+    db.expire_all()
     result = await db.execute(
         select(Order)
         .options(selectinload(Order.items).selectinload(OrderItem.menu_item))
@@ -199,6 +203,40 @@ async def add_item_to_order(
 
     order = await get_order(db, order_id)
     await _broadcast_order_event(db, order, "order_item_added")
+    return order
+
+
+async def update_item_assignment(
+    db: AsyncSession, order_id: int, item_id: int, assigned_user_id: uuid.UUID | None, user_id: uuid.UUID
+) -> Order:
+    """Reassign an order item to a participant, or back to the shared pool (only if pending)."""
+    order = await get_order(db, order_id)
+    if order.status != OrderStatus.PENDING:
+        raise ValueError("Can only reassign items on pending orders")
+
+    session = await db.get(DiningSession, order.session_id)
+    if not await is_active_participant(db, session.id, user_id):
+        raise PermissionError("Must be an active participant of the session to modify orders")
+
+    if assigned_user_id is not None:
+        if not await is_active_participant(db, session.id, assigned_user_id):
+            raise ValueError("assigned_user_id must be an active participant of the session")
+
+    result = await db.execute(
+        select(OrderItem).where(
+            OrderItem.id == item_id, OrderItem.order_id == order_id
+        )
+    )
+    order_item = result.scalars().first()
+    if not order_item:
+        raise ValueError("Order item not found in this order")
+
+    order_item.assigned_user_id = assigned_user_id
+    db.add(order_item)
+    await db.commit()
+
+    order = await get_order(db, order_id)
+    await _broadcast_order_event(db, order, "order_item_assigned")
     return order
 
 
