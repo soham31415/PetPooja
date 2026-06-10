@@ -48,7 +48,7 @@ export function AvatarStack({ users, size = "sm", max = 4 }: AvatarStackProps) {
         >
           +{overflow}
         </div>
-      ))}
+      )}
     </div>
   );
 }
