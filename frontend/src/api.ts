@@ -104,6 +104,22 @@ export interface BillSummary {
   per_person: UserBillShare[];
 }
 
+export interface MenuItemStat {
+  menu_item_id: number;
+  name: string;
+  quantity_ordered: number;
+  revenue: number;
+}
+
+export interface RestaurantAnalytics {
+  restaurant_id: number;
+  total_orders: number;
+  orders_by_status: Record<string, number>;
+  total_revenue: number;
+  average_participants_per_session: number;
+  top_menu_items: MenuItemStat[];
+}
+
 export interface Token {
   access_token: string;
   token_type: string;
@@ -114,7 +130,8 @@ export type WsOrderEvent = {
     | "order_created"
     | "order_status_updated"
     | "order_item_added"
-    | "order_item_removed";
+    | "order_item_removed"
+    | "order_item_assigned";
   order: Order;
 };
 
@@ -279,6 +296,40 @@ export const api = {
     }),
   removeOrderItem: (orderId: number, itemId: number) =>
     request<Order>("DELETE", `/orders/${orderId}/items/${itemId}`),
+  assignOrderItem: (
+    orderId: number,
+    itemId: number,
+    assignedUserId: UUID | null
+  ) =>
+    request<Order>("PATCH", `/orders/${orderId}/items/${itemId}/assign`, {
+      assigned_user_id: assignedUserId,
+    }),
+
+  // Restaurant owner dashboard
+  listMyRestaurants: () => request<Restaurant[]>("GET", "/restaurants/mine"),
+  createRestaurant: (name: string, address: string) =>
+    request<Restaurant>("POST", "/restaurants/", { name, address }),
+  createMenuItem: (
+    restaurantId: number,
+    item: { name: string; description: string; price: number; tags?: string[] }
+  ) =>
+    request<MenuItem>("POST", `/restaurants/${restaurantId}/menu`, {
+      tags: [],
+      ...item,
+    }),
+  listRestaurantTables: (restaurantId: number) =>
+    request<RestaurantTable[]>("GET", `/restaurants/${restaurantId}/tables`),
+  createRestaurantTable: (restaurantId: number, label: string) =>
+    request<RestaurantTable>("POST", `/restaurants/${restaurantId}/tables`, {
+      label,
+    }),
+  getRestaurantOrders: (restaurantId: number) =>
+    request<Order[]>("GET", `/restaurants/${restaurantId}/orders`),
+  getRestaurantAnalytics: (restaurantId: number) =>
+    request<RestaurantAnalytics>(
+      "GET",
+      `/restaurants/${restaurantId}/analytics`
+    ),
 };
 
 // ---------------- WebSocket URL helper ----------------
@@ -290,4 +341,14 @@ export function sessionWebSocketUrl(sessionId: UUID, token: string): string {
     ? API_BASE.replace(/^http/, "ws")
     : `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}${API_BASE}`;
   return `${base}/sessions/${sessionId}/ws?token=${encodeURIComponent(token)}`;
+}
+
+export function restaurantWebSocketUrl(
+  restaurantId: number,
+  token: string
+): string {
+  const base = API_BASE.startsWith("http")
+    ? API_BASE.replace(/^http/, "ws")
+    : `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}${API_BASE}`;
+  return `${base}/restaurants/${restaurantId}/ws/orders?token=${encodeURIComponent(token)}`;
 }

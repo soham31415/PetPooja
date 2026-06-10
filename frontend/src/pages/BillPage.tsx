@@ -64,18 +64,25 @@ export function BillPage() {
   }, [bill, user]);
 
   const mySubtotal = myShare?.total ?? 0;
-  const myServiceCharge = Math.round(mySubtotal * SERVICE_CHARGE_RATE * 100) / 100;
+  const myServiceCharge =
+    Math.round(mySubtotal * SERVICE_CHARGE_RATE * 100) / 100;
   const myTotal = Math.round((mySubtotal + myServiceCharge) * 100) / 100;
 
   const grandSubtotal = bill?.grand_total ?? 0;
-  const grandServiceCharge = Math.round(grandSubtotal * SERVICE_CHARGE_RATE * 100) / 100;
-  const grandTotal = Math.round((grandSubtotal + grandServiceCharge) * 100) / 100;
+  const grandServiceCharge =
+    Math.round(grandSubtotal * SERVICE_CHARGE_RATE * 100) / 100;
+  const grandTotal =
+    Math.round((grandSubtotal + grandServiceCharge) * 100) / 100;
 
   const othersCount = participants.length > 1 ? participants.length - 1 : 0;
 
   if (loading) {
     return (
-      <Layout title="Bill" back={`/sessions/${sessionId}/cart`} sessionId={sessionId}>
+      <Layout
+        title="Bill"
+        back={`/sessions/${sessionId}/cart`}
+        sessionId={sessionId}
+      >
         <div className="flex items-center justify-center py-20">
           <span className="material-symbols-outlined animate-spin text-on-surface-variant">
             progress_activity
@@ -87,7 +94,11 @@ export function BillPage() {
 
   if (!bill) {
     return (
-      <Layout title="Bill" back={`/sessions/${sessionId}/cart`} sessionId={sessionId}>
+      <Layout
+        title="Bill"
+        back={`/sessions/${sessionId}/cart`}
+        sessionId={sessionId}
+      >
         <div className="flex flex-col items-center justify-center py-20 gap-4">
           <span className="material-symbols-outlined text-on-surface-variant text-[48px]">
             receipt_long
@@ -270,9 +281,7 @@ export function BillPage() {
       <div className="fixed bottom-16 md:bottom-0 left-0 right-0 z-40 px-4 pb-4">
         <div className="glass-panel rounded-2xl p-4 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] border border-outline-variant/20 max-w-md mx-auto flex flex-col gap-3">
           <button
-            onClick={() =>
-              showToast("Payment flow coming soon!", "payments")
-            }
+            onClick={() => showToast("Payment flow coming soon!", "payments")}
             className="w-full bg-primary text-on-primary py-4 rounded-xl font-label-md text-label-md flex justify-center items-center gap-2 active:scale-[0.98] transition-transform shadow-md"
           >
             <span className="material-symbols-outlined" aria-hidden>
@@ -281,9 +290,7 @@ export function BillPage() {
             Pay my share (${myTotal.toFixed(2)})
           </button>
           <button
-            onClick={() =>
-              showToast("Payment flow coming soon!", "payments")
-            }
+            onClick={() => showToast("Payment flow coming soon!", "payments")}
             className="w-full border border-outline/40 text-on-surface py-3 rounded-xl font-label-md text-label-md flex justify-center items-center gap-2 active:scale-[0.98] transition-transform hover:bg-surface-container-low"
           >
             Pay for everyone (${grandTotal.toFixed(2)})

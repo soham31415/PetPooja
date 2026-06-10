@@ -62,6 +62,22 @@ async def list_restaurants(skip: int = 0, limit: int = 100, db: AsyncSession = D
     )
     return result.scalars().all()
 
+
+@router.get("/mine", response_model=List[RestaurantRead])
+async def list_my_restaurants(
+    current_user: User = Depends(deps.get_current_user),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """
+    List restaurants owned by the current user, for the owner dashboard.
+    """
+    result = await db.execute(
+        select(Restaurant)
+        .options(selectinload(Restaurant.menu_items))
+        .where(Restaurant.owner_id == current_user.id)
+    )
+    return result.scalars().all()
+
 @router.post("/{restaurant_id}/menu", response_model=MenuItemRead)
 async def create_menu_item(
     restaurant_id: int,

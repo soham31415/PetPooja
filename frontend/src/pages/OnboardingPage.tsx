@@ -53,10 +53,7 @@ export function OnboardingPage() {
             onClick={() => navigate(user ? "/scan" : "/auth?next=/scan")}
             className="w-full h-14 bg-primary text-on-primary rounded-full font-label-md text-label-md shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-95 transition-all flex items-center justify-center gap-2"
           >
-            <span
-              className="material-symbols-outlined text-[20px]"
-              aria-hidden
-            >
+            <span className="material-symbols-outlined text-[20px]" aria-hidden>
               qr_code_scanner
             </span>
             Scan Table QR
@@ -77,6 +74,17 @@ export function OnboardingPage() {
               className="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors underline decoration-outline-variant underline-offset-4"
             >
               Continue as guest
+            </button>
+          </div>
+        )}
+
+        {user && (
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors underline decoration-outline-variant underline-offset-4"
+            >
+              Restaurant owner? Open dashboard
             </button>
           </div>
         )}

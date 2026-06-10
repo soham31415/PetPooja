@@ -67,7 +67,11 @@ export function Layout({
 
 function BottomNav({ sessionId }: { sessionId: string }) {
   const tabs = [
-    { to: `/sessions/${sessionId}/menu`, icon: "restaurant_menu", label: "Menu" },
+    {
+      to: `/sessions/${sessionId}/menu`,
+      icon: "restaurant_menu",
+      label: "Menu",
+    },
     {
       to: `/sessions/${sessionId}/cart`,
       icon: "shopping_cart_checkout",

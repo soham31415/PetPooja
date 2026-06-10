@@ -10,7 +10,11 @@ import {
   type User,
 } from "../api";
 import { useAuth } from "../auth";
-import { useSessionWebSocket, orderSubtotal, rememberSession } from "../session";
+import {
+  useSessionWebSocket,
+  orderSubtotal,
+  rememberSession,
+} from "../session";
 import { Layout } from "../components/Layout";
 import { MenuItemCard } from "../components/MenuItemCard";
 import { AvatarStack } from "../components/AvatarStack";
@@ -79,7 +83,10 @@ export function MenuPage() {
       setActiveOrder(evt.order);
       const last = evt.order.items[evt.order.items.length - 1];
       if (last) showToast(`${last.menu_item.name} added to the table`, "add");
-    } else if (evt.event === "order_item_removed") {
+    } else if (
+      evt.event === "order_item_removed" ||
+      evt.event === "order_item_assigned"
+    ) {
       setActiveOrder(evt.order);
     } else if (evt.event === "order_status_updated") {
       setActiveOrder(evt.order.status === "pending" ? evt.order : null);
@@ -233,11 +240,7 @@ export function MenuPage() {
         )}
         {filtered.map((m, idx) => (
           <div key={m.id}>
-            <MenuItemCard
-              item={m}
-              onAdd={addToCart}
-              busy={busy === m.id}
-            />
+            <MenuItemCard item={m} onAdd={addToCart} busy={busy === m.id} />
             {idx < filtered.length - 1 && (
               <div className="h-px w-full bg-surface-variant/30 my-1" />
             )}

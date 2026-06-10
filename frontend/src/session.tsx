@@ -1,23 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 
 import {
+  restaurantWebSocketUrl,
   sessionWebSocketUrl,
   type Order,
   type UUID,
   type WsOrderEvent,
 } from "./api";
 
-/**
- * Subscribe to the live order feed for a dining session.
- *
- * Connects to `WS /api/v1/sessions/{id}/ws?token=` and pushes order
- * events ("order_created" / "order_status_updated" / "order_item_added" /
- * "order_item_removed") to onEvent. Auto-reconnects with exponential
- * backoff on transient drops.
- */
-export function useSessionWebSocket(
-  sessionId: UUID | null,
-  token: string | null,
+/** Shared connect/reconnect logic for the session and restaurant order feeds. */
+function useOrderEventSocket(
+  url: string | null,
   onEvent: (event: WsOrderEvent) => void
 ): { connected: boolean } {
   const [connected, setConnected] = useState(false);
@@ -28,7 +21,7 @@ export function useSessionWebSocket(
   }, [onEvent]);
 
   useEffect(() => {
-    if (!sessionId || !token) return;
+    if (!url) return;
 
     let ws: WebSocket | null = null;
     let retry = 0;
@@ -37,7 +30,6 @@ export function useSessionWebSocket(
 
     const connect = () => {
       if (cancelled) return;
-      const url = sessionWebSocketUrl(sessionId, token);
       ws = new WebSocket(url);
 
       ws.onopen = () => {
@@ -76,9 +68,42 @@ export function useSessionWebSocket(
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (ws && ws.readyState <= 1) ws.close();
     };
-  }, [sessionId, token]);
+  }, [url]);
 
   return { connected };
+}
+
+/**
+ * Subscribe to the live order feed for a dining session.
+ *
+ * Connects to `WS /api/v1/sessions/{id}/ws?token=` and pushes order
+ * events ("order_created" / "order_status_updated" / "order_item_added" /
+ * "order_item_removed" / "order_item_assigned") to onEvent.
+ * Auto-reconnects with exponential backoff on transient drops.
+ */
+export function useSessionWebSocket(
+  sessionId: UUID | null,
+  token: string | null,
+  onEvent: (event: WsOrderEvent) => void
+): { connected: boolean } {
+  const url = sessionId && token ? sessionWebSocketUrl(sessionId, token) : null;
+  return useOrderEventSocket(url, onEvent);
+}
+
+/**
+ * Subscribe to a restaurant's live order dashboard feed. Owner-only;
+ * connects to `WS /api/v1/restaurants/{id}/ws/orders?token=`.
+ */
+export function useRestaurantWebSocket(
+  restaurantId: number | null,
+  token: string | null,
+  onEvent: (event: WsOrderEvent) => void
+): { connected: boolean } {
+  const url =
+    restaurantId != null && token
+      ? restaurantWebSocketUrl(restaurantId, token)
+      : null;
+  return useOrderEventSocket(url, onEvent);
 }
 
 /** Sum order totals (server doesn't return totals, only items). */

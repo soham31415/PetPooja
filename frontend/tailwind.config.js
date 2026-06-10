@@ -92,7 +92,10 @@ export default {
           "48px",
           { lineHeight: "56px", letterSpacing: "-0.02em", fontWeight: "700" },
         ],
-        "headline-lg-mobile": ["28px", { lineHeight: "36px", fontWeight: "600" }],
+        "headline-lg-mobile": [
+          "28px",
+          { lineHeight: "36px", fontWeight: "600" },
+        ],
         "headline-md": ["24px", { lineHeight: "32px", fontWeight: "600" }],
         "body-lg": ["18px", { lineHeight: "28px", fontWeight: "400" }],
         "label-sm": ["12px", { lineHeight: "16px", fontWeight: "500" }],

@@ -8,6 +8,8 @@ import { TableConfirmPage } from "./pages/TableConfirmPage";
 import { MenuPage } from "./pages/MenuPage";
 import { CartPage } from "./pages/CartPage";
 import { BillPage } from "./pages/BillPage";
+import { DashboardListPage } from "./pages/DashboardListPage";
+import { RestaurantDashboardPage } from "./pages/RestaurantDashboardPage";
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { user, loading } = useAuth();
@@ -69,6 +71,22 @@ export default function App() {
         element={
           <RequireAuth>
             <BillPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/dashboard"
+        element={
+          <RequireAuth>
+            <DashboardListPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/dashboard/:restaurantId"
+        element={
+          <RequireAuth>
+            <RestaurantDashboardPage />
           </RequireAuth>
         }
       />

@@ -145,8 +145,32 @@ export function CartPage() {
     }
   };
 
-  const isOwner =
-    session && user ? session.host_id === user.id : false; // host check is the closest proxy on the diner app
+  const assignItem = async (
+    orderId: number,
+    itemId: number,
+    assignedUserId: string | null
+  ) => {
+    try {
+      const updated = await api.assignOrderItem(
+        orderId,
+        itemId,
+        assignedUserId
+      );
+      setOrders((prev) => {
+        const idx = prev.findIndex((o) => o.id === updated.id);
+        if (idx === -1) return prev;
+        const next = prev.slice();
+        next[idx] = updated;
+        return next;
+      });
+    } catch (err) {
+      const detail =
+        err instanceof ApiError ? err.detail : "Could not reassign item.";
+      showToast(detail, "error");
+    }
+  };
+
+  const isOwner = session && user ? session.host_id === user.id : false; // host check is the closest proxy on the diner app
 
   const advanceStatus = async () => {
     if (!liveOrder) return;
@@ -201,8 +225,7 @@ export function CartPage() {
                 onClick={advanceStatus}
                 className="ml-auto text-primary font-label-md text-label-md hover:underline"
               >
-                Mark as{" "}
-                {liveOrder.status === "pending" ? "confirmed" : "paid"}
+                Mark as {liveOrder.status === "pending" ? "confirmed" : "paid"}
               </button>
             )}
           </div>
@@ -270,6 +293,32 @@ export function CartPage() {
                       <p className="font-label-sm text-label-sm text-on-surface-variant mt-0.5">
                         Qty: {it.quantity}
                       </p>
+                      {liveOrder?.status === "pending" && (
+                        <label className="sr-only" htmlFor={`assign-${it.id}`}>
+                          Assign {it.menu_item.name}
+                        </label>
+                      )}
+                      {liveOrder?.status === "pending" && (
+                        <select
+                          id={`assign-${it.id}`}
+                          value={it.assigned_user_id ?? ""}
+                          onChange={(e) =>
+                            assignItem(
+                              liveOrder.id,
+                              it.id,
+                              e.target.value || null
+                            )
+                          }
+                          className="mt-1 font-label-sm text-label-sm text-on-surface-variant bg-surface-container-low rounded-md px-2 py-1 border border-outline-variant/30"
+                        >
+                          <option value="">Shared</option>
+                          {participants.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.id === user?.id ? "Me" : p.username}
+                            </option>
+                          ))}
+                        </select>
+                      )}
                     </div>
                     <span className="font-body-md text-body-md text-on-surface">
                       ${(it.quantity * it.menu_item.price).toFixed(2)}

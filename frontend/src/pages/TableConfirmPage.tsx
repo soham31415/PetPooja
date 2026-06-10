@@ -102,10 +102,7 @@ export function TableConfirmPage() {
             {info.label}
           </h2>
           <p className="font-body-md text-body-md text-on-surface-variant flex items-center justify-center gap-1">
-            <span
-              className="material-symbols-outlined text-[18px]"
-              aria-hidden
-            >
+            <span className="material-symbols-outlined text-[18px]" aria-hidden>
               storefront
             </span>
             {info.restaurant_name}

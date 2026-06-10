@@ -36,15 +36,15 @@ npm run preview    # serve the built bundle locally
 
 ## Routes
 
-| Path                            | Screen                                              |
-| ------------------------------- | --------------------------------------------------- |
-| `/`                             | Onboarding — Scan QR / Sign in / Guest              |
-| `/auth`                         | Sign in or create an account                        |
-| `/scan`                         | Live QR scanner (with manual code fallback)         |
-| `/scan/:qrToken`                | Table confirmation — "Join {N} friends" or "Start"  |
-| `/sessions/:sessionId/menu`     | Menu browsing + group recommendations               |
-| `/sessions/:sessionId/cart`     | Group cart + live order status                      |
-| `/sessions/:sessionId/bill`     | Transparent bill split (your share)                 |
+| Path                        | Screen                                             |
+| --------------------------- | -------------------------------------------------- |
+| `/`                         | Onboarding — Scan QR / Sign in / Guest             |
+| `/auth`                     | Sign in or create an account                       |
+| `/scan`                     | Live QR scanner (with manual code fallback)        |
+| `/scan/:qrToken`            | Table confirmation — "Join {N} friends" or "Start" |
+| `/sessions/:sessionId/menu` | Menu browsing + group recommendations              |
+| `/sessions/:sessionId/cart` | Group cart + live order status                     |
+| `/sessions/:sessionId/bill` | Transparent bill split (your share)                |
 
 ## Realtime
 
