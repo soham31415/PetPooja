@@ -30,14 +30,13 @@ async def create_user(user_in: UserCreate, db: AsyncSession = Depends(deps.get_d
         is_guest=False,
     )
     db.add(new_user)
-    await db.commit()
-    await db.refresh(new_user)
-    
-    # Initialize empty taste profile
+    await db.flush()  # assign new_user.id without committing
+
+    # Initialize empty taste profile in the same transaction
     profile = TasteProfile(user_id=new_user.id)
     db.add(profile)
     await db.commit()
-    
+
     # Reload user with taste profile
     result = await db.execute(
         select(User).options(selectinload(User.taste_profile)).where(User.id == new_user.id)
@@ -68,12 +67,11 @@ async def create_guest(guest_in: GuestCreate, db: AsyncSession = Depends(deps.ge
     """
     new_guest = User(username=guest_in.username, is_guest=True)
     db.add(new_guest)
-    await db.commit()
-    await db.refresh(new_guest)
+    await db.flush()  # assign new_guest.id without committing
 
-    # Create Taste Profile (optional data from input)
+    # Create Taste Profile (optional data from input) in the same transaction
     profile_data = guest_in.taste_profile or TasteProfileCreate()
-    
+
     profile = TasteProfile(
         user_id=new_guest.id,
         preferences=profile_data.preferences,
@@ -82,7 +80,7 @@ async def create_guest(guest_in: GuestCreate, db: AsyncSession = Depends(deps.ge
     )
     db.add(profile)
     await db.commit()
-    
+
     # Reload user with taste profile
     result = await db.execute(
         select(User).options(selectinload(User.taste_profile)).where(User.id == new_guest.id)

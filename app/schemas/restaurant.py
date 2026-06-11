@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, UUID4
 from typing import List, Optional
 
 class MenuItemBase(BaseModel):
@@ -26,6 +26,7 @@ class RestaurantCreate(RestaurantBase):
 
 class RestaurantRead(RestaurantBase):
     id: int
+    owner_id: Optional[UUID4] = None
     menu_items: List[MenuItemRead] = []
 
     class Config:

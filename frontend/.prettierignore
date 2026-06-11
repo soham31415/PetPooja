@@ -1,0 +1,4 @@
+dist
+dev-dist
+coverage
+node_modules

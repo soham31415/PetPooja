@@ -11,6 +11,10 @@ class OrderItemBase(BaseModel):
 class OrderItemCreate(OrderItemBase):
     pass
 
+
+class OrderItemAssign(BaseModel):
+    assigned_user_id: Optional[UUID4] = None
+
 class OrderItemRead(OrderItemBase):
     id: int
     menu_item: MenuItemRead

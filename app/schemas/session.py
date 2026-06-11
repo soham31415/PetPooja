@@ -13,6 +13,7 @@ class SessionCreate(SessionBase):
 class SessionRead(SessionBase):
     id: UUID4
     host_id: UUID4
+    table_id: Optional[int] = None
     status: SessionStatus
     created_at: datetime
     # We might want to return participants here
